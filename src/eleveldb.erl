@@ -81,6 +81,7 @@ init() ->
     erlang:load_nif(SoName, application:get_all_env(eleveldb)).
 
 -type open_options() :: [{create_if_missing, boolean()} |
+                         {paxos_comparator, boolean()} |
                          {error_if_exists, boolean()} |
                          {write_buffer_size, pos_integer()} |
                          {block_size, pos_integer()} |                  %% DEPRECATED
@@ -199,10 +200,10 @@ iterator(Ref, Opts, keys_only) ->
     ?WAIT_FOR_REPLY(CallerRef).
 
 -spec async_iterator_move(reference()|undefined, itr_ref(), iterator_action()) -> reference() |
-                                                                        {ok, Key::binary(), Value::binary()} |
-                                                                        {ok, Key::binary()} |
-                                                                        {error, invalid_iterator} |
-                                                                        {error, iterator_closed}.
+                                                                                  {ok, Key::binary(), Value::binary()} |
+                                                                                  {ok, Key::binary()} |
+                                                                                  {error, invalid_iterator} |
+                                                                                  {error, iterator_closed}.
 async_iterator_move(_CallerRef, _IterRef, _IterAction) ->
     erlang:nif_error({error, not_loaded}).
 
@@ -212,13 +213,13 @@ async_iterator_move(_CallerRef, _IterRef, _IterAction) ->
                                                      {error, iterator_closed}.
 iterator_move(_IRef, _Loc) ->
     case async_iterator_move(undefined, _IRef, _Loc) of
-    Ref when is_reference(Ref) ->
-        receive
-            {Ref, X}                    -> X
-        end;
-    {ok, _}=Key -> Key;
-    {ok, _, _}=KeyVal -> KeyVal;
-    ER -> ER
+        Ref when is_reference(Ref) ->
+            receive
+                {Ref, X}                    -> X
+            end;
+        {ok, _}=Key -> Key;
+        {ok, _, _}=KeyVal -> KeyVal;
+        ER -> ER
     end.
 
 -spec iterator_close(itr_ref()) -> ok.
@@ -285,6 +286,7 @@ is_empty_int(_Ref) ->
 -spec option_types(open | read | write) -> [{atom(), bool | integer | any}].
 option_types(open) ->
     [{create_if_missing, bool},
+     {paxos_comparator, bool},
      {error_if_exists, bool},
      {write_buffer_size, integer},
      {block_size, integer},                            %% DEPRECATED
@@ -314,7 +316,7 @@ option_types(read) ->
      {fill_cache, bool},
      {iterator_refresh, bool}];
 option_types(write) ->
-     [{sync, bool}].
+    [{sync, bool}].
 
 -spec validate_options(open | read | write, [{atom(), any()}]) ->
                               {[{atom(), any()}], [{atom(), any()}]}.
@@ -452,19 +454,19 @@ compression_test_Z() ->
                                                    {compression, true}]),
     [ok = ?MODULE:put(Ref1, <<I:64/unsigned>>, CompressibleData, [{sync, true}]) ||
         I <- lists:seq(1,10)],
-	%% Check both of the LOG files created to see if the compression option was correctly
-	%% passed down
-	MatchCompressOption =
-		fun(File, Expected) ->
-				{ok, Contents} = file:read_file(File),
-				case re:run(Contents, "Options.compression: " ++ Expected) of
-					{match, _} -> match;
-					nomatch -> nomatch
-				end
-		end,
-	Log0Option = MatchCompressOption("/tmp/eleveldb.compress.0/LOG", "0"),
-	Log1Option = MatchCompressOption("/tmp/eleveldb.compress.1/LOG", "1"),
-	?assert(Log0Option =:= match andalso Log1Option =:= match).
+    %% Check both of the LOG files created to see if the compression option was correctly
+    %% passed down
+    MatchCompressOption =
+        fun(File, Expected) ->
+                {ok, Contents} = file:read_file(File),
+                case re:run(Contents, "Options.compression: " ++ Expected) of
+                    {match, _} -> match;
+                    nomatch -> nomatch
+                end
+        end,
+    Log0Option = MatchCompressOption("/tmp/eleveldb.compress.0/LOG", "0"),
+    Log1Option = MatchCompressOption("/tmp/eleveldb.compress.1/LOG", "1"),
+    ?assert(Log0Option =:= match andalso Log1Option =:= match).
 
 
 close_test() -> [{close_test_Z(), l} || l <- lists:seq(1, 20)].
@@ -521,7 +523,7 @@ prop_put_delete() ->
                  begin
                      ?cmd("rm -rf /tmp/eleveldb.putdelete.qc"),
                      {ok, Ref} = eleveldb:open("/tmp/eleveldb.putdelete.qc",
-                                                [{create_if_missing, true}]),
+                                               [{create_if_missing, true}]),
                      Model = apply_kv_ops(Ops, Ref, []),
 
                      %% Valdiate that all deleted values return not_found

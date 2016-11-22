@@ -33,6 +33,7 @@
 #include <vector>
 
 #include "eleveldb.h"
+#include "paxos_comparator.h"
 
 #include "leveldb/db.h"
 #include "leveldb/comparator.h"
@@ -86,6 +87,7 @@ ERL_NIF_TERM ATOM_ERROR;
 ERL_NIF_TERM ATOM_EINVAL;
 ERL_NIF_TERM ATOM_BADARG;
 ERL_NIF_TERM ATOM_CREATE_IF_MISSING;
+ERL_NIF_TERM ATOM_PAXOS_COMPARATOR;
 ERL_NIF_TERM ATOM_ERROR_IF_EXISTS;
 ERL_NIF_TERM ATOM_WRITE_BUFFER_SIZE;
 ERL_NIF_TERM ATOM_SST_BLOCK_SIZE;
@@ -310,6 +312,13 @@ ERL_NIF_TERM parse_open_option(ErlNifEnv* env, ERL_NIF_TERM item, leveldb::Optio
             if (enif_get_ulong(env, option[1], &write_buffer_sz))
                 opts.write_buffer_size = write_buffer_sz;
         }
+        else if (option[0] == eleveldb::ATOM_PAXOS_COMPARATOR)
+        {
+            if (option[1] == eleveldb::ATOM_TRUE)
+            {
+                opts.comparator = leveldb::GetPaxosComparator();
+            } //if
+        }    // else if
         else if (option[0] == eleveldb::ATOM_SST_BLOCK_SIZE)
         {
             unsigned long sst_block_sz(0);
@@ -1234,6 +1243,7 @@ try
     ATOM(eleveldb::ATOM_TRUE, "true");
     ATOM(eleveldb::ATOM_FALSE, "false");
     ATOM(eleveldb::ATOM_CREATE_IF_MISSING, "create_if_missing");
+    ATOM(eleveldb::ATOM_PAXOS_COMPARATOR, "paxos_comparator");
     ATOM(eleveldb::ATOM_ERROR_IF_EXISTS, "error_if_exists");
     ATOM(eleveldb::ATOM_WRITE_BUFFER_SIZE, "write_buffer_size");
     ATOM(eleveldb::ATOM_SST_BLOCK_SIZE, "sst_block_size");
