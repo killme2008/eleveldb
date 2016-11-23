@@ -3,7 +3,6 @@
 #include "leveldb/comparator.h"
 #include "leveldb/slice.h"
 #include "port/port.h"
-#include <syslog.h>
 #include <iostream>
 #include <map>
 #include <cmath>
@@ -21,23 +20,12 @@ namespace leveldb {
     class PaxosComparator : public Comparator {
     public:
       int Compare(const Slice & a, const Slice & b) const {
-        if (a.size() != sizeof(uint64_t))
-          {
-            syslog(LOG_ERR, "assert a.size %zu b.size %zu", a.size(), b.size());
-            assert(a.size() == sizeof(uint64_t));
-          }
 
-        if (b.size() != sizeof(uint64_t))
-          {
-            syslog(LOG_ERR, "assert a.size %zu b.size %zu", a.size(), b.size());
-            assert(b.size() == sizeof(uint64_t));
-          }
+        string sa = a.ToString();
+        string sb = b.ToString();
 
-        uint64_t lla = 0;
-        uint64_t llb = 0;
-
-        memcpy(&lla, a.data(), sizeof(uint64_t));
-        memcpy(&llb, b.data(), sizeof(uint64_t));
+        uint64_t lla = atoi(sa.c_str());
+        uint64_t llb = atoi(sb.c_str());
 
         if (lla == llb)
           {
